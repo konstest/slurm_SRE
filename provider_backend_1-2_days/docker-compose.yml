@@ -1,0 +1,68 @@
+version: '3.5'
+services:
+  provider:
+    container_name: provider
+    image: provider
+    build:
+      dockerfile: Dockerfile
+      context: .
+    environment:
+      - SERVICE_PORT=2122
+      - DB_HOST=postgresql-primary
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=Gj7BDvmL8SD
+      - DB_NAME=provider_development
+      - RDB_HOST=postgresql-secondary
+      - RDB_PORT=5432
+      - RDB_USER=postgres
+      - RDB_PASS=Gj7BDvmL8SD
+      - RDB_NAME=provider_development
+      - PROVIDER_SOURCE_HEADER=X-Slurm-Source-Provider
+      - PROVIDER_SOURCE_TOKEN=voronezh
+      - AUTH_SERVICE_URL=http://auth_service:2121
+    ports:
+      - 2122:2122
+    depends_on:
+      - postgresql-primary
+      - postgresql-secondary
+    networks:
+      - sre
+
+  postgresql-primary:
+    image: 'bitnami/postgresql:14.0.0'
+    container_name: 'postgresql-primary'
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=Gj7BDvmL8SD
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_DATABASE=provider_development
+      - POSTGRESQL_PASSWORD=Gj7BDvmL8SD
+    networks:
+      - sre
+
+  postgresql-secondary:
+    image: 'bitnami/postgresql:14.0.0'
+    container_name: 'postgresql-secondary'
+    ports:
+      - '5433:5432'
+    depends_on:
+      - postgresql-primary
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_DATABASE=provider_development
+      - POSTGRESQL_MASTER_HOST=postgresql-primary
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - POSTGRESQL_REPLICATION_PASSWORD=Gj7BDvmL8SD
+      - POSTGRESQL_PASSWORD=Gj7BDvmL8SD
+    networks:
+      - sre
+
+networks:
+  sre:
+    name: sre

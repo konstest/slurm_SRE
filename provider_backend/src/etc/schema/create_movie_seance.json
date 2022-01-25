@@ -1,0 +1,49 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "title": "Create seance schema",
+    "default": {},
+    "examples": [
+        {
+            "datetime": "2020-01-18T00:00:00.000Z",
+            "price": 250
+        }
+    ],
+    "required": [
+        "datetime",
+        "price"
+    ],
+    "properties": {
+        "datetime": {
+            "$id": "#/properties/datetime",
+            "type": "string",
+            "format": "datetimez",
+            "title": "The datetime schema",
+            "description": "Seance datetime",
+            "examples": [
+                "2020-01-18T00:00:00.000Z"
+            ]
+        },
+        "price": {
+            "$id": "#/properties/price",
+            "type": "integer",
+            "maximum": 1000,
+            "title": "The price schema",
+            "description": "Price for seance",
+            "examples": [
+                250
+            ]
+        },
+        "movie_id": {
+            "$id": "#/properties/movie_id",
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "title": "Movie id schema",
+            "description": "Movie id",
+            "examples": [
+                250
+            ]
+        }
+    },
+    "additionalProperties": false
+}

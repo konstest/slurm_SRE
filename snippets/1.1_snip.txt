@@ -1,0 +1,5 @@
+histogram_quantile(0.99, sum(rate(http_server_request_duration_seconds_bucket{app="provider_backend", namespace="<CITY>"}[5m])) by (le))
+histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{app="provider_backend", namespace="<CITY>"}[5m])) by (le))
+histogram_quantile(0.90, sum(rate(http_server_request_duration_seconds_bucket{app="provider_backend", namespace="<CITY>"}[5m])) by (le))
+histogram_quantile(0.75, sum(rate(http_server_request_duration_seconds_bucket{app="provider_backend", namespace="<CITY>"}[5m])) by (le))
+histogram_quantile(0.50, sum(rate(http_server_request_duration_seconds_bucket{app="provider_backend", namespace="<CITY>"}[5m])) by (le))

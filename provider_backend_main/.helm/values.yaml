@@ -1,0 +1,72 @@
+# This is a YAML-formatted file.
+
+replicas: 1
+
+image:
+  name: registry.slurm.io/sre_main/provider_backend
+  tag: latest
+  imagepullpolicy: Always
+
+env:
+  SERVICE_PORT: 3000
+  DB_NAME: provider_development
+  DB_USER: postgres
+  RDB_NAME: provider_development
+  RDB_USER: postgres
+  PROVIDER_SOURCE_HEADER: X-Slurm-Source-Provider
+  AUTH_SERVICE_URL: http://authorization-service
+
+envSecret: []
+  # DB_PASSWORD is mounted from MySQL Bitnami charts secret in separate block in templates/deployment.yaml.
+  # Don't add DB_PASSWORD environment variable in envSecret.
+
+service:
+  port: 3000
+  external_port: 80
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 200Mi
+
+ingress:
+  enabled: false
+  annotations: {}
+  labels: {}
+  host: prov.s000
+  domain: sre.slurm.io
+  tls:
+    secretName: prov-s000-sre-slurm-io-tls-secret
+
+postgresql:
+  image:
+    tag: 12.9.0-debian-10-r18
+  postgresqlDatabase: provider_development
+  postgresqlPassword: A8kcemcZyk
+  replication:
+    enabled: true
+    user: repl_user
+    password: uBsk9IIa6J
+    readReplicas: 1
+  persistence:
+    enabled: true
+    size: 8Gi
+  volumePermissions:
+    enabled: true
+  postgresqlExtendedConf:
+    max_wal_size: 2GB
+    checkpoint_timeout: 600s
+  metrics:
+    enabled: false
+    serviceMonitor:
+      enabled: false
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+    requests:
+      cpu: 100m
+      memory: 512Mi

@@ -1,0 +1,55 @@
+# This is a YAML-formatted file.
+# Add here production values to ADD and/or OVERRIDE default
+# values.yaml (will be merged together)
+---
+replicas: 5
+
+# dont pull already fetched images on production nodes:
+image:
+  imagepullpolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+env:
+  DB_NAME: provider_prod
+  RDB_NAME: provider_prod
+  AUTH_SERVICE_URL: http://authorization-service.main
+  PYTHONUNBUFFERED: 1
+
+ingress:
+  enabled: true
+  host: provider-backend
+  domain: sre.slurm.io
+  tls:
+    secretName: acme-crt-secret
+
+postgresql:
+  postgresqlDatabase: provider_prod
+  replication:
+    readReplicas: 3
+  persistence:
+    enabled: true
+    size: 8Gi
+  volumePermissions:
+    enabled: true
+  metrics:
+    enabled: false
+    serviceMonitor:
+      enabled: false
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+
+monitoring:
+  serviceMonitor:
+    enabled: true

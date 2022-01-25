@@ -1,0 +1,41 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+{{- if .Values.ingress.annotations }}
+  annotations:
+    {{- if .Values.annotations }}
+    {{- range $key, $val := .Values.annotations }}
+    {{ $key }}: {{ $val | quote}}
+    {{- end }}
+    {{- end }}
+{{ toYaml .Values.ingress.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+{{- if .Values.ingress.labels }}
+{{ toYaml .Values.ingress.labels | indent 4 }}
+{{- end }}
+  name: {{ .Release.Name }}
+spec:
+  rules:
+    - host: {{ .Values.ingress.host }}.{{ if .Values.city }}{{ printf "%s%s" .Values.city "." }}{{ end }}{{ .Values.ingress.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}
+                port:
+                  number: {{ .Values.service.external_port}}
+{{- if .Values.ingress.tls.secretName }}
+  tls:
+    - secretName: {{ .Values.ingress.tls.secretName }}
+      hosts:
+      - {{ .Values.ingress.host }}.{{ if .Values.city }}{{ printf "%s%s" .Values.city "." }}{{ end }}{{ .Values.ingress.domain }}
+{{- end }}
+{{- end }}

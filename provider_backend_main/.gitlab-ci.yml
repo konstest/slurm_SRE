@@ -1,0 +1,170 @@
+variables:
+  K8S_API_URL: https://172.20.100.101:6443
+  K8S_CI_TOKEN_PROD: $K8S_CI_TOKEN_PROD # in CICD vars
+  CITY: $CITY                           # in CICD vars
+  TRIVY_TOKEN: $TRIVY_TOKEN             # in Group CICD vars
+
+default:
+  tags:
+    - docker-executor
+
+before_script:
+  - date
+
+after_script:
+  - date
+
+stages:
+  - linters
+  - build
+  - vulns
+  - test
+  - cleanup
+  - push
+  - latest
+  - deploy
+
+yamllint:
+  image: pipelinecomponents/yamllint:0.19.3
+  stage: linters
+  interruptible: true
+  script:
+    - yamllint -f parsable -c .yamllint .
+
+helmlint:
+  image: centosadmin/kubernetes-helm:3.6.3
+  stage: linters
+  interruptible: true
+  script:
+    - helm lint .helm
+
+python_syntax_check:
+  image: python:3.9-alpine
+  stage: linters
+  interruptible: true
+  script:
+    - export PYTHONDONTWRITEBYTECODE=1
+    - |
+      find ./src -type f -name '*.py' | grep -v -E '(__pycache__|\.pyc$|\.pyo$)' | xargs python3 -m py_compile
+
+build:
+  stage: build
+  interruptible: true
+  script:
+    - docker build -t $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA .
+
+trivy:low:
+  image:
+    name: aquasec/trivy
+    entrypoint: [""]
+  stage: vulns
+  interruptible: true
+  script:
+    - trivy client --exit-code 0
+      --severity UNKNOWN,LOW,MEDIUM,HIGH
+      --remote http://172.20.100.52:28080
+      --token "$TRIVY_TOKEN"
+      $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA
+  variables:
+    TRIVY_LIGHT: "true"
+    TRIVY_NO_PROGRESS: "true"
+    TRIVY_IGNORE_UNFIXED: "true"
+
+trivy:critical:
+  image:
+    name: aquasec/trivy
+    entrypoint: [""]
+  stage: vulns
+  interruptible: true
+  script:
+    - trivy client --exit-code 1
+      --severity CRITICAL
+      --remote http://172.20.100.52:28080
+      --token "$TRIVY_TOKEN"
+      $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA
+  variables:
+    TRIVY_LIGHT: "true"
+    TRIVY_NO_PROGRESS: "true"
+    TRIVY_IGNORE_UNFIXED: "true"
+
+
+test:
+  stage: test
+  image:
+    name: docker/compose:1.29.1
+    entrypoint: [""]
+  script:
+    - docker-compose
+          -p "$CI_PROJECT_PATH_SLUG"_"$CI_PIPELINE_ID"
+          -f docker-compose.test.yml
+        up
+          --abort-on-container-exit
+          --exit-code-from app
+          --quiet-pull
+
+cleanup:
+  stage: cleanup
+  image:
+    name: docker/compose:1.29.1
+    entrypoint: [""]
+  script:
+    - docker-compose
+        -p "$CI_PROJECT_PATH_SLUG"_"$CI_PIPELINE_ID"
+        -f docker-compose.test.yml
+      down
+  when: always
+
+push:
+  stage: push
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - date
+    - docker --config ~/.$CI_PROJECT_PATH_SLUG login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+  script:
+    - docker --config ~/.$CI_PROJECT_PATH_SLUG push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA
+
+latest:
+  stage: latest
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - date
+    - docker --config ~/.$CI_PROJECT_PATH_SLUG login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+  script:
+    - docker tag $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:latest
+    - docker --config ~/.$CI_PROJECT_PATH_SLUG push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:latest
+  only:
+    - master
+    - main
+
+deploy_prod:
+  stage: deploy
+  image: centosadmin/kubernetes-helm:3.6.3
+  environment:
+    name: production
+    url: http://$CITY.provider-backend.sre.slurm.io/health
+  script:
+    - kubectl config set-cluster k8s --insecure-skip-tls-verify=true --server="$K8S_API_URL"
+    - kubectl config set-credentials ci --token="$K8S_CI_TOKEN_PROD"
+    - kubectl config set-context ci --cluster=k8s --user=ci
+    - kubectl config use-context ci
+    - |
+      kubectl -n "$CITY" get cm veto >/dev/null 2>&1 && exit 1
+    - helm upgrade --install "$CITY" .helm
+        --values .helm/values.yaml
+        --values .helm/values.prod.yaml
+        --set image.name="$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME"
+        --set image.tag="$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA"
+        --set annotations.ci-branch="$CI_COMMIT_REF_SLUG"
+        --set annotations.ci-commit-short="$CI_COMMIT_SHORT_SHA"
+        --set annotations.ci-pipeline-id="$CI_PIPELINE_ID"
+        --set annotations.ci-pipeline-url="$CI_PIPELINE_URL"
+        --set city="$CITY"
+        --timeout 300s
+        --atomic
+        --debug
+        --namespace "$CITY"
+  only:
+    - master
+    - main

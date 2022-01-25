@@ -1,0 +1,26 @@
+version: '3.5'
+services:
+  postgresql:
+    image: 'bitnami/postgresql:14.0.0'
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=Gj7BDvmL8SD
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_DATABASE=provider_development
+      - POSTGRESQL_PASSWORD=Gj7BDvmL8SD
+    healthcheck:
+      test: ['CMD', '/opt/bitnami/scripts/pgpool/healthcheck.sh']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      dockerfile: test/docker/Dockerfile
+      context: .
+    environment:
+      - TEST_POSTGRES_HOST=postgresql
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgresql

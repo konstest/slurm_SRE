@@ -1,0 +1,43 @@
+kind: PrometheusRule
+apiVersion: monitoring.coreos.com/v1
+metadata:
+  name: prometheus-pgsql-slo-rules
+  namespace: {{ .Release.Name }}
+spec:
+  groups:
+    - name: pgsql-slo-rules
+      rules:
+      - record: {{ .Release.Name }}:job:pgsql_replica_replication_delay_is_below_threshold
+        expr: pg_replication_delay_behind_primary_seconds{namespace="{{ .Release.Name }}"} <= bool 1
+      - record: {{ .Release.Name }}:job:pgsql_replica_replication_delay_is_above_threshold
+        expr: pg_replication_delay_behind_primary_seconds{namespace="{{ .Release.Name }}"} > bool 1
+
+kind: PrometheusRule
+apiVersion: monitoring.coreos.com/v1
+metadata:
+  name: prometheus-pgsql-slo-alerts
+  namespace: {{ .Release.Name }}
+spec:
+  groups:
+  - name: pgsql-slo-alerts
+    rules:
+      - alert: {{ .Release.Name }}PgSQLFreshnessSLOPage
+        expr: {{ .Release.Name }}:job:pgsql_replica_replication_delay_is_above_threshold >= 1
+        for: 5m
+        labels:
+          severity: page
+          team: {{ .Release.Name }}
+        annotations:
+          summary: "Replication Delay is High"
+          description: "Replication Delay is above the threshold for 5 minutes on {{"{{"}} $labels.pod {{"}}"}}"
+
+      - alert: {{ .Release.Name }}PgSQLFreshnessSLOWarning
+        expr: {{ .Release.Name }}:job:pgsql_replica_replication_delay_is_above_threshold >= 1
+        for: 1m
+        labels:
+          severity: warning
+          team: {{ .Release.Name }}
+        annotations:
+          summary: "Replication Delay is High"
+          description: "Replication Delay is above the threshold for 5 minutes on {{"{{"}} $labels.pod {{"}}"}}"
+

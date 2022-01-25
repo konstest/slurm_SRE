@@ -1,0 +1,51 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "title": "Create movie schema",
+    "default": {},
+    "examples": [
+        {
+            "name": "Test Movie",
+            "description": "Test description",
+            "image_url": "http://example.com/image.jpeg"
+        }
+    ],
+    "required": [
+        "name",
+        "description",
+        "image_url"
+    ],
+    "properties": {
+        "name": {
+            "$id": "#/properties/name",
+            "type": "string",
+            "title": "The name schema",
+            "description": "Movie title",
+            "default": "",
+            "examples": [
+                "Test Movie"
+            ]
+        },
+        "description": {
+            "$id": "#/properties/description",
+            "type": "string",
+            "title": "The description schema",
+            "description": "Movie description",
+            "default": "",
+            "examples": [
+                "Test description"
+            ]
+        },
+        "image_url": {
+            "$id": "#/properties/image_url",
+            "type": "string",
+            "title": "The image_url schema",
+            "description": "Movie poster url",
+            "default": "",
+            "examples": [
+                "http://example.com/image.jpeg"
+            ]
+        }
+    },
+    "additionalProperties": false
+}

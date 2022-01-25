@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- if .Values.annotations }}
+  annotations:
+    {{- range $key, $val := .Values.annotations }}
+    {{ $key }}: {{ $val | quote}}
+    {{- end }}
+  {{- end }}
+  labels:
+    app: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: app
+  name: {{ .Release.Name }}
+spec:
+  progressDeadlineSeconds: 180
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      release: {{ .Release.Name }}
+      component: app
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  revisionHistoryLimit: 5
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "{{ .Values.service.port }}"
+        prometheus.io/scrape: "true"
+      {{- if .Values.annotations }}
+        {{- range $key, $val := .Values.annotations }}
+        {{ $key }}: {{ $val | quote}}
+        {{- end }}
+      {{- end }}
+      creationTimestamp: null
+      labels:
+        app: {{ .Chart.Name }}
+        release: {{ .Release.Name }}
+        component: app
+    spec:
+      containers:
+      - env:
+        - name: DB_HOST
+          value: {{ .Release.Name }}-postgresql
+        - name: DB_PORT
+          value: "5432"
+        - name: RDB_PORT
+          value: "5432"
+        - name: RDB_HOST
+          value: {{ .Release.Name }}-postgresql-read
+        - name: PROVIDER_URL  # must be keeped in sync with "service.yaml"
+          value: http://{{ .Release.Name }}.{{ .Release.Namespace}}
+        - name: ST_NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: PROVIDER_CITY
+          value: {{ .Release.Name}}
+        - name: PROVIDER_SOURCE_TOKEN
+          value: {{ .Release.Name }}
+        {{- range $key, $val := .Values.env }}
+        - name: {{ $key | quote }}
+          value: {{ $val | quote }}
+        {{- end }}
+        {{- range $key, $val := .Values.envSecret }}
+        - name: {{ $key | quote }}
+          valueFrom:
+            secretKeyRef:
+              key: {{ $key | lower | replace "_" "-" }}
+              name: {{ $val }}
+        {{- end }}
+        - name: DB_PASS
+          valueFrom:
+            secretKeyRef:
+              key: postgresql-password
+              name: {{ .Release.Name }}-postgresql
+        - name: RDB_PASS
+          valueFrom:
+            secretKeyRef:
+              key: postgresql-password
+              name: {{ .Release.Name }}-postgresql
+        image: {{ .Values.image.name }}:{{ .Values.image.tag}}
+        imagePullPolicy: {{ .Values.image.imagepullpolicy }}
+        name: app
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: http
+          protocol: TCP
+        startupProbe:
+          failureThreshold: 60
+          httpGet:
+            path: /health
+            port: {{ .Values.service.port }}
+            scheme: HTTP
+          periodSeconds: 10
+        readinessProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /health
+            port: {{ .Values.service.port }}
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: {{ .Values.service.port }}
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 2
+        resources:
+{{ toYaml .Values.resources | indent 12 }}
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 20

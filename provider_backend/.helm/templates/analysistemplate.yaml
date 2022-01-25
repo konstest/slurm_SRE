@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ .Release.Name }}-success-rate
+  labels:
+    app: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  metrics:
+  - name: success-rate
+    count: 5 # number of measurments
+    interval: 30s # how often to run p8s query
+    failureLimit: 3 # how many times the `successCondition` should fail before declare a failure
+    successCondition: result[0] >= 99
+    provider:
+      prometheus:
+        address: https://prometheus.sre.slurm.io # p8s URL
+        query: |
+          100 * sum(
+              irate(http_server_requests_total{app="provider_backend", code!~"5..", city="{{ .Values.city }}"}[1m])
+              * on (pod) group_left()
+              kube_pod_labels{label_app="provider_backend", label_role="canary"}
+            ) / sum(
+              irate(http_server_requests_total{app="provider_backend", city="{{ .Values.city }}"}[1m])
+              * on (pod) group_left()
+              kube_pod_labels{label_app="provider_backend", label_role="canary"}
+            )

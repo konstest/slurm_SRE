@@ -1,0 +1,73 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "http://example.com/example.json",
+    "type": "object",
+    "title": "The root schema",
+    "description": "The root schema comprises the entire JSON document.",
+    "default": {},
+    "examples": [
+        {
+            "email": "hello@test.com",
+            "seatsIds": [
+                0
+            ],
+            "seance_id": 1
+        }
+    ],
+    "required": [
+        "email",
+        "seatsIds",
+        "seance_id"
+    ],
+    "properties": {
+        "email": {
+            "$id": "#/properties/email",
+            "type": "string",
+            "format": "email",
+            "title": "The email schema",
+            "description": "User's email",
+            "default": "",
+            "examples": [
+                "hello@test.com"
+            ]
+        },
+        "seatsIds": {
+            "$id": "#/properties/seatsIds",
+            "type": "array",
+            "title": "The seatsIds schema",
+            "description": "List of seats",
+            "examples": [
+                [
+                    0
+                ]
+            ],
+            "additionalItems": false,
+            "items": {
+                "$id": "#/properties/seatsIds/items",
+                "anyOf": [
+                    {
+                        "$id": "#/properties/seatsIds/items/anyOf/0",
+                        "type": "integer",
+                        "title": "The first anyOf schema",
+                        "description": "An explanation about the purpose of this instance.",
+                        "minimum": 0,
+                        "examples": [
+                            0
+                        ]
+                    }
+                ]
+            }
+        },
+        "seance_id": {
+            "$id": "#/properties/seance_id",
+            "type": "integer",
+            "minimum": 0,
+            "title": "The seance_id schema",
+            "description": "Id of seance",
+            "examples": [
+                1
+            ]
+        }
+    },
+    "additionalProperties": false
+}
